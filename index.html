@@ -1,0 +1,1402 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MTMU Card Generator</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=DM+Mono:ital,wght@0,300;0,400;0,500;1,300&family=Syne:wght@400;500;600;700;800&display=swap');
+
+:root {
+  --navy: #13103a;
+  --navy-mid: #1e1a4e;
+  --cream: #f5f2ec;
+  --cream-dark: #ede9e1;
+  --white: #ffffff;
+  --accent: #4038a0;
+  --accent-light: #6b63d4;
+  --ui-bg: #0c0a24;
+  --ui-surface: #141230;
+  --ui-border: rgba(255,255,255,0.08);
+  --ui-text: rgba(255,255,255,0.85);
+  --ui-dim: rgba(255,255,255,0.35);
+  --mono: 'DM Mono', monospace;
+  --sans: 'Syne', sans-serif;
+
+  /* mood accent — overridden by JS */
+  --mood: #4038a0;
+  --mood-light: #6b63d4;
+}
+
+* { margin:0; padding:0; box-sizing:border-box; }
+
+body {
+  background: var(--ui-bg);
+  font-family: var(--sans);
+  min-height: 100vh;
+  color: var(--ui-text);
+  display: grid;
+  grid-template-columns: 340px 1fr;
+  grid-template-rows: 56px 1fr;
+}
+
+/* ── TOPBAR ── */
+.topbar {
+  grid-column: 1/-1;
+  background: var(--ui-surface);
+  border-bottom: 1px solid var(--ui-border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 28px;
+}
+.topbar-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+}
+.topbar-brand .play {
+  width:0; height:0;
+  border-top:5px solid transparent;
+  border-bottom:5px solid transparent;
+  border-left:9px solid var(--mood-light);
+}
+.topbar-right {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--ui-dim);
+  letter-spacing: 0.1em;
+}
+
+/* ── SIDEBAR ── */
+.sidebar {
+  background: var(--ui-surface);
+  border-right: 1px solid var(--ui-border);
+  padding: 28px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+  overflow-y: auto;
+}
+
+.sidebar-section {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.sidebar-label {
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 0.28em;
+  text-transform: uppercase;
+  color: var(--ui-dim);
+  margin-bottom: 2px;
+}
+
+/* inputs */
+.input-field {
+  background: rgba(255,255,255,0.05);
+  border: 1px solid var(--ui-border);
+  border-radius: 4px;
+  padding: 11px 14px;
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--ui-text);
+  width: 100%;
+  outline: none;
+  transition: border-color 0.2s;
+}
+.input-field:focus {
+  border-color: var(--mood-light);
+}
+.input-field::placeholder { color: var(--ui-dim); }
+
+/* generate button */
+.btn-generate {
+  background: var(--mood);
+  border: none;
+  border-radius: 4px;
+  padding: 13px 18px;
+  font-family: var(--sans);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: #fff;
+  cursor: pointer;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: opacity 0.2s, transform 0.1s;
+  position: relative;
+  overflow: hidden;
+}
+.btn-generate:hover { opacity: 0.88; }
+.btn-generate:active { transform: scale(0.98); }
+.btn-generate .btn-play {
+  width:0; height:0;
+  border-top:5px solid transparent;
+  border-bottom:5px solid transparent;
+  border-left:8px solid #fff;
+}
+.btn-generate.loading { opacity: 0.6; pointer-events: none; }
+
+/* format toggle */
+.format-toggle {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+}
+.fmt-btn {
+  background: rgba(255,255,255,0.04);
+  border: 1px solid var(--ui-border);
+  border-radius: 4px;
+  padding: 9px 8px;
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--ui-dim);
+  cursor: pointer;
+  transition: all 0.18s;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+}
+.fmt-btn .fmt-icon {
+  border: 1.5px solid currentColor;
+  border-radius: 2px;
+  opacity: 0.6;
+}
+.fmt-btn .fmt-icon.sq { width: 22px; height: 22px; }
+.fmt-btn .fmt-icon.vt { width: 18px; height: 22px; }
+.fmt-btn.active {
+  border-color: var(--mood-light);
+  color: var(--mood-light);
+  background: rgba(107,99,212,0.1);
+}
+
+/* mood swatches */
+.mood-grid {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 6px;
+}
+.swatch {
+  width: 100%;
+  aspect-ratio: 1;
+  border-radius: 3px;
+  cursor: pointer;
+  border: 2px solid transparent;
+  transition: transform 0.15s, border-color 0.15s;
+  position: relative;
+}
+.swatch:hover { transform: scale(1.1); }
+.swatch.active { border-color: #fff; }
+
+.hex-input-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.hex-preview {
+  width: 28px; height: 28px;
+  border-radius: 3px;
+  flex-shrink: 0;
+  border: 1px solid var(--ui-border);
+  transition: background 0.2s;
+}
+.hex-field {
+  flex: 1;
+  background: rgba(255,255,255,0.05);
+  border: 1px solid var(--ui-border);
+  border-radius: 4px;
+  padding: 7px 12px;
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--ui-text);
+  outline: none;
+  letter-spacing: 0.1em;
+  transition: border-color 0.2s;
+}
+.hex-field:focus { border-color: var(--mood-light); }
+
+/* card selector dots */
+.card-tabs {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.card-tab {
+  padding: 5px 11px;
+  border-radius: 100px;
+  border: 1px solid var(--ui-border);
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ui-dim);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.card-tab.active {
+  border-color: var(--mood-light);
+  color: var(--mood-light);
+  background: rgba(107,99,212,0.1);
+}
+
+/* divider */
+.divider {
+  height: 1px;
+  background: var(--ui-border);
+  margin: 0 -24px;
+}
+
+/* tip */
+.tip {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--ui-dim);
+  line-height: 1.7;
+  letter-spacing: 0.02em;
+}
+.tip span { color: var(--mood-light); }
+
+/* ── MAIN CANVAS ── */
+.canvas {
+  background: #0a0820;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  padding: 48px 40px;
+  gap: 32px;
+  overflow-y: auto;
+}
+
+/* empty state */
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  gap: 16px;
+  opacity: 0.4;
+  text-align: center;
+}
+.empty-state .big-play {
+  width:0; height:0;
+  border-top:22px solid transparent;
+  border-bottom:22px solid transparent;
+  border-left:38px solid rgba(255,255,255,0.3);
+  margin-bottom: 8px;
+}
+.empty-state p {
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: rgba(255,255,255,0.4);
+  line-height: 1.8;
+}
+
+/* loading state */
+.loading-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  gap: 20px;
+}
+.loading-bars {
+  display: flex;
+  gap: 5px;
+  align-items: flex-end;
+  height: 40px;
+}
+.loading-bars span {
+  width: 4px;
+  border-radius: 2px;
+  background: var(--mood-light);
+  animation: barBounce 1s ease-in-out infinite;
+}
+.loading-bars span:nth-child(1) { animation-delay: 0s; }
+.loading-bars span:nth-child(2) { animation-delay: 0.12s; }
+.loading-bars span:nth-child(3) { animation-delay: 0.24s; }
+.loading-bars span:nth-child(4) { animation-delay: 0.36s; }
+.loading-bars span:nth-child(5) { animation-delay: 0.48s; }
+@keyframes barBounce {
+  0%,100% { height: 8px; opacity: 0.3; }
+  50%      { height: 36px; opacity: 1; }
+}
+.loading-text {
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--ui-dim);
+}
+
+/* ── CARD WRAPPER ── */
+.card-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  animation: fadeUp 0.4s ease forwards;
+}
+@keyframes fadeUp {
+  from { opacity:0; transform:translateY(12px); }
+  to   { opacity:1; transform:translateY(0); }
+}
+.card-wrapper-label {
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: rgba(255,255,255,0.25);
+}
+
+/* ── THE CARDS THEMSELVES ── */
+.card {
+  border-radius: 3px;
+  overflow: hidden;
+  position: relative;
+  flex-shrink: 0;
+}
+
+/* SQUARE */
+.card.sq { width: 420px; height: 420px; }
+/* VERTICAL */
+.card.vt { width: 420px; height: 525px; }
+
+/* ── Card 1: Opener ── */
+.card-opener {
+  background: var(--navy);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 36px;
+}
+.card-opener::before {
+  content:'';
+  position:absolute; inset:0;
+  background: radial-gradient(ellipse at 85% 15%, var(--mood-glow-a, rgba(107,99,212,0.22)) 0%, transparent 60%),
+              radial-gradient(ellipse at 15% 85%, var(--mood-glow-b, rgba(64,56,160,0.14)) 0%, transparent 55%);
+  pointer-events:none;
+}
+.c-bug {
+  display:flex; justify-content:space-between; align-items:flex-start;
+  position:relative;
+}
+.c-bug .bug {
+  font-size:11px; font-weight:700; letter-spacing:0.22em;
+  text-transform:uppercase; color:#fff;
+  display:flex; align-items:center; gap:6px;
+}
+.c-bug .bug::after {
+  content:''; display:inline-block;
+  width:0; height:0;
+  border-top:5px solid transparent; border-bottom:5px solid transparent;
+  border-left:9px solid var(--mood-light);
+}
+.c-bug .issue {
+  font-size:10px; letter-spacing:0.15em; color:rgba(255,255,255,0.35);
+  text-transform:uppercase; font-family:var(--mono);
+}
+.c-headline { position:relative; }
+.c-label {
+  font-size:10px; letter-spacing:0.22em; text-transform:uppercase;
+  color:var(--mood-light); margin-bottom:12px; font-family:var(--mono);
+}
+.c-artist {
+  font-size:48px; font-weight:800; line-height:0.95;
+  color:#fff; letter-spacing:-0.01em; text-transform:uppercase;
+  word-break: break-word;
+  overflow-wrap: break-word;
+  max-width: 100%;
+}
+.c-album {
+  font-size:13px; font-weight:400; letter-spacing:0.06em;
+  color:rgba(255,255,255,0.4); margin-top:12px; font-style:italic;
+  font-family: var(--mono);
+  max-width: 100%;
+  word-break: break-word;
+  overflow-wrap: break-word;
+  line-height: 1.5;
+}
+.c-pills { display:flex; gap:8px; margin-top:18px; flex-wrap:wrap; }
+.pill {
+  padding:5px 11px;
+  border:1px solid rgba(255,255,255,0.15);
+  border-radius:100px;
+  font-size:9px; letter-spacing:0.14em;
+  text-transform:uppercase; color:rgba(255,255,255,0.4);
+  font-family:var(--mono);
+}
+
+/* ── Card 2: Pull quote ── */
+.card-quote {
+  background: var(--cream);
+  display:flex; flex-direction:column;
+  justify-content:space-between;
+  padding:38px;
+}
+.card-quote .cq-top {
+  display:flex; align-items:center; gap:10px;
+}
+.card-quote .cq-dot {
+  width:5px; height:5px; border-radius:50%;
+  background:var(--mood); flex-shrink:0;
+}
+.card-quote .cq-meta {
+  font-size:10px; letter-spacing:0.2em;
+  text-transform:uppercase; color:rgba(19,16,58,0.42);
+  font-family:var(--mono);
+}
+.card-quote .cq-qmark {
+  font-size:88px; line-height:0.7;
+  color:var(--mood); opacity:0.13;
+  font-family:Georgia,serif;
+  align-self:flex-start; margin-top:4px;
+}
+.card-quote .cq-text {
+  font-size:22px; font-weight:600; line-height:1.38;
+  color:var(--navy); margin-top:-20px;
+}
+.card-quote .cq-text em {
+  font-style:normal; color:var(--mood);
+}
+.card-quote .cq-bottom {
+  display:flex; justify-content:space-between; align-items:flex-end;
+}
+.card-quote .cq-attr .name {
+  font-size:11px; font-weight:700; letter-spacing:0.12em;
+  text-transform:uppercase; color:var(--navy);
+}
+.card-quote .cq-attr .ctx {
+  font-size:10px; color:rgba(19,16,58,0.42);
+  letter-spacing:0.08em; margin-top:3px; font-family:var(--mono);
+}
+.card-quote .cq-bug {
+  font-size:10px; font-weight:700; letter-spacing:0.2em;
+  text-transform:uppercase; color:var(--navy);
+  display:flex; align-items:center; gap:5px;
+}
+.card-quote .cq-bug::after {
+  content:''; display:inline-block;
+  width:0; height:0;
+  border-top:4px solid transparent; border-bottom:4px solid transparent;
+  border-left:8px solid var(--navy);
+}
+
+/* ── Card 3: Editorial ── */
+.card-editorial {
+  background: var(--cream);
+  display:flex; flex-direction:column;
+  justify-content:space-between; padding:40px;
+}
+.card-editorial .ce-rule {
+  display:flex; align-items:center; gap:14px;
+  padding-bottom:24px;
+  border-bottom:1px solid rgba(19,16,58,0.12);
+}
+.card-editorial .ce-rule .tag {
+  font-size:10px; letter-spacing:0.22em;
+  text-transform:uppercase; color:rgba(19,16,58,0.42);
+  white-space:nowrap; font-family:var(--mono);
+}
+.card-editorial .ce-rule .line {
+  flex:1; height:1px; background:rgba(19,16,58,0.12);
+}
+.card-editorial .ce-body {
+  font-size:17px; line-height:1.72; color:var(--navy);
+  flex:1; padding-top:26px; font-weight:400;
+}
+.card-editorial .ce-body strong { font-weight:700; }
+.card-editorial .ce-body em { font-style:italic; color:var(--mood); }
+.card-editorial .ce-foot {
+  display:flex; justify-content:space-between; align-items:center;
+  padding-top:22px;
+  border-top:1px solid rgba(19,16,58,0.12);
+  margin-top:24px;
+}
+.card-editorial .ce-mtmu {
+  font-size:11px; font-weight:700; letter-spacing:0.2em;
+  text-transform:uppercase; color:var(--navy);
+  display:flex; align-items:center; gap:5px;
+}
+.card-editorial .ce-mtmu::after {
+  content:''; display:inline-block;
+  width:0; height:0;
+  border-top:4px solid transparent; border-bottom:4px solid transparent;
+  border-left:8px solid var(--navy);
+}
+.card-editorial .ce-rec {
+  text-align:right; font-size:10px;
+  letter-spacing:0.08em; color:rgba(19,16,58,0.38);
+  line-height:1.6; font-family:var(--mono);
+}
+
+/* ── Card 4: Stacked wordmark ── */
+.card-stack {
+  background: var(--navy);
+  display:flex; flex-direction:column;
+  justify-content:space-between; padding:36px;
+}
+.card-stack::before {
+  content:'';
+  position:absolute; inset:0;
+  background: radial-gradient(ellipse at 15% 85%, var(--mood-glow-b, rgba(64,56,160,0.18)) 0%, transparent 60%);
+  pointer-events:none;
+}
+.card-stack .cs-top {
+  display:flex; justify-content:space-between;
+  align-items:center; position:relative;
+}
+.card-stack .cs-bug {
+  font-size:11px; font-weight:700; letter-spacing:0.22em;
+  text-transform:uppercase; color:#fff;
+  display:flex; align-items:center; gap:6px;
+}
+.card-stack .cs-bug::after {
+  content:''; display:inline-block;
+  width:0; height:0;
+  border-top:5px solid transparent; border-bottom:5px solid transparent;
+  border-left:9px solid var(--mood-light);
+}
+.card-stack .cs-badge {
+  font-size:9px; letter-spacing:0.2em;
+  text-transform:uppercase; color:var(--mood-light);
+  border:1px solid var(--mood-light);
+  padding:3px 9px; border-radius:100px; font-family:var(--mono);
+}
+.card-stack .cs-words { position:relative; }
+.card-stack .cs-line {
+  font-size:62px; font-weight:800; letter-spacing:0.03em;
+  text-transform:uppercase; line-height:1.0;
+  color:rgba(255,255,255,0.18);
+}
+.card-stack .cs-line.lit { color:#fff; }
+.card-stack .cs-play {
+  width:0; height:0;
+  border-top:10px solid transparent; border-bottom:10px solid transparent;
+  border-left:18px solid var(--mood-light);
+  margin-top:10px;
+}
+.card-stack .cs-foot { position:relative; }
+.card-stack .cs-sub {
+  font-size:11px; letter-spacing:0.14em;
+  color:rgba(255,255,255,0.35); text-transform:uppercase;
+  margin-bottom:4px; font-family:var(--mono);
+}
+.card-stack .cs-artist {
+  font-size:15px; font-weight:700; color:#fff; letter-spacing:0.04em;
+}
+
+/* ── Card 5: Animated ── */
+.card-anim {
+  background: var(--navy);
+  display:flex; flex-direction:column;
+  justify-content:space-between; padding:36px;
+  overflow:hidden;
+}
+.card-anim::before {
+  content:'';
+  position:absolute; inset:0;
+  background: radial-gradient(ellipse at 80% 20%, var(--mood-glow-a, rgba(107,99,212,0.2)) 0%, transparent 55%),
+              radial-gradient(ellipse at 20% 80%, var(--mood-glow-b, rgba(64,56,160,0.13)) 0%, transparent 50%);
+  pointer-events:none;
+}
+.card-anim .line-decor {
+  position:absolute; top:0; left:0; right:0; bottom:0;
+  overflow:hidden; pointer-events:none;
+}
+.card-anim .line-decor span {
+  position:absolute; display:block;
+  width:1px; background:var(--mood-light);
+  opacity:0.2;
+  animation:lineRise 3.5s ease-in-out infinite;
+}
+.card-anim .line-decor span:nth-child(1){left:18%;height:40%;top:100%;animation-delay:0s;animation-duration:3.2s;}
+.card-anim .line-decor span:nth-child(2){left:40%;height:55%;top:100%;animation-delay:0.5s;animation-duration:3.8s;}
+.card-anim .line-decor span:nth-child(3){left:66%;height:32%;top:100%;animation-delay:1s;animation-duration:3s;}
+.card-anim .line-decor span:nth-child(4){left:84%;height:62%;top:100%;animation-delay:1.5s;animation-duration:4s;}
+@keyframes lineRise {
+  0%{transform:translateY(0);opacity:0;}
+  10%{opacity:0.2;}
+  80%{opacity:0.15;}
+  100%{transform:translateY(-600px);opacity:0;}
+}
+.card-anim .ca-top {
+  display:flex; justify-content:space-between; align-items:center; position:relative;
+}
+.card-anim .ca-bug {
+  font-size:11px; font-weight:700; letter-spacing:0.22em;
+  text-transform:uppercase; color:#fff;
+  display:flex; align-items:center; gap:6px;
+}
+.card-anim .ca-bug::after {
+  content:''; display:inline-block;
+  width:0; height:0;
+  border-top:5px solid transparent; border-bottom:5px solid transparent;
+  border-left:9px solid var(--mood-light);
+}
+.card-anim .ca-live {
+  display:flex; align-items:center; gap:6px;
+  font-size:9px; letter-spacing:0.18em;
+  text-transform:uppercase; color:var(--mood-light);
+  font-family:var(--mono);
+}
+.card-anim .ca-live::before {
+  content:''; width:6px; height:6px; border-radius:50%;
+  background:var(--mood-light);
+  animation:pulse 1.5s ease-in-out infinite;
+}
+@keyframes pulse {
+  0%,100%{opacity:1;transform:scale(1);}
+  50%{opacity:0.4;transform:scale(0.7);}
+}
+.card-anim .ca-words { position:relative; }
+.card-anim .ca-word {
+  font-size:60px; font-weight:800; text-transform:uppercase;
+  letter-spacing:0.03em; line-height:1.0; color:#fff;
+  opacity:0; transform:translateY(14px);
+  animation:wordIn 0.55s forwards;
+}
+.card-anim .ca-word.dim { color:rgba(255,255,255,0.2); }
+.card-anim .ca-word:nth-child(1){animation-delay:0.3s;}
+.card-anim .ca-word:nth-child(2){animation-delay:0.8s;}
+.card-anim .ca-word:nth-child(3){animation-delay:1.3s;}
+.card-anim .ca-word:nth-child(4){animation-delay:1.8s;}
+@keyframes wordIn {
+  to{opacity:1;transform:translateY(0);}
+}
+.card-anim .ca-reveal {
+  position:relative; opacity:0;
+  animation:wordIn 0.5s 2.4s forwards;
+  display:flex; align-items:center; gap:12px; margin-top:8px;
+}
+.card-anim .ca-reveal .rplay {
+  width:0; height:0;
+  border-top:8px solid transparent; border-bottom:8px solid transparent;
+  border-left:14px solid var(--mood-light);
+}
+.card-anim .ca-reveal .rtext {
+  font-size:10px; letter-spacing:0.2em;
+  text-transform:uppercase; color:rgba(255,255,255,0.4);
+  font-family:var(--mono);
+}
+.card-anim .ca-foot {
+  position:relative; opacity:0;
+  animation:wordIn 0.5s 2.9s forwards;
+  font-size:11px; letter-spacing:0.14em;
+  text-transform:uppercase; color:rgba(255,255,255,0.3);
+  font-family:var(--mono);
+}
+
+/* ── EDITABLE text ── */
+[contenteditable] {
+  outline: none;
+  cursor: text;
+  position: relative;
+  transition: background 0.15s;
+  border-radius: 2px;
+}
+[contenteditable]:hover {
+  background: rgba(107,99,212,0.1);
+}
+[contenteditable]:focus {
+  background: rgba(107,99,212,0.15);
+  box-shadow: 0 0 0 1px rgba(107,99,212,0.4);
+}
+
+/* edit hint */
+.edit-hint {
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: rgba(255,255,255,0.2);
+  text-align: center;
+}
+
+/* card nav */
+.card-nav {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  justify-content: center;
+}
+.cnav-btn {
+  padding: 6px 16px;
+  border-radius: 100px;
+  border: 1px solid var(--ui-border);
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ui-dim);
+  cursor: pointer;
+  background: none;
+  transition: all 0.15s;
+}
+.cnav-btn.active {
+  border-color: var(--mood-light);
+  color: var(--mood-light);
+  background: rgba(107,99,212,0.08);
+}
+.replay-btn {
+  margin-top: 4px;
+  padding: 8px 20px;
+  background: transparent;
+  border: 1px solid rgba(255,255,255,0.15);
+  border-radius: 100px;
+  color: rgba(255,255,255,0.35);
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: none;
+}
+.replay-btn:hover {
+  border-color: rgba(255,255,255,0.4);
+  color: rgba(255,255,255,0.7);
+}
+
+/* ══════════════════════════════════════
+   RESPONSIVE — MOBILE
+══════════════════════════════════════ */
+@media (max-width: 700px) {
+
+  body {
+    grid-template-columns: 1fr;
+    grid-template-rows: 56px auto 1fr;
+    height: auto;
+    min-height: 100vh;
+    overflow: auto;
+  }
+
+  /* topbar stays, just trim the tagline */
+  .topbar-right { display: none; }
+
+  /* sidebar becomes a full-width top panel */
+  .sidebar {
+    border-right: none;
+    border-bottom: 1px solid var(--ui-border);
+    padding: 20px 18px;
+    gap: 20px;
+    overflow-y: visible;
+  }
+
+  /* collapse dividers to tighter spacing */
+  .divider { margin: 0 -18px; }
+
+  /* canvas stacks below */
+  .canvas {
+    padding: 28px 18px 60px;
+    gap: 24px;
+    min-height: 60vh;
+  }
+
+  /* cards scale to fit screen — max width is viewport minus padding */
+  .card.sq {
+    width: min(340px, calc(100vw - 36px));
+    height: min(340px, calc(100vw - 36px));
+  }
+  .card.vt {
+    width: min(340px, calc(100vw - 36px));
+    height: calc(min(340px, calc(100vw - 36px)) * 1.25);
+  }
+
+  /* artist name on opener scales with card */
+  .c-artist { font-size: 36px; }
+
+  /* stack and anim lines scale down */
+  .card-stack .cs-line { font-size: 44px; }
+  .card-anim .ca-word { font-size: 42px; }
+
+  /* mood grid — make swatches a bit bigger to tap */
+  .swatch { min-width: 36px; min-height: 36px; }
+
+  /* card tabs — scrollable row if needed */
+  .card-tabs { flex-wrap: nowrap; overflow-x: auto; padding-bottom: 4px; }
+  .card-tab { flex-shrink: 0; padding: 7px 14px; font-size: 10px; }
+
+  /* format toggle — full width buttons */
+  .fmt-btn { padding: 12px 8px; }
+
+  /* generate button — bigger tap target */
+  .btn-generate { padding: 16px 18px; font-size: 12px; }
+
+  /* tip text */
+  .tip { font-size: 11px; }
+
+  /* edit hint */
+  .edit-hint { font-size: 10px; }
+
+  /* replay button */
+  .replay-btn { display: block !important; }
+
+  /* empty state centers properly */
+  .empty-state { min-height: 40vh; }
+}
+</style>
+</head>
+<body>
+
+<!-- TOPBAR -->
+<div class="topbar">
+  <div class="topbar-brand">
+    <div class="play"></div>
+    MTMU Card Generator
+  </div>
+  <div class="topbar-right">Music that makes you.</div>
+</div>
+
+<!-- SIDEBAR -->
+<div class="sidebar">
+
+  <!-- Artist input -->
+  <div class="sidebar-section">
+    <div class="sidebar-label">Artist & Album</div>
+    <input class="input-field" id="artistInput" placeholder="Artist name" />
+    <input class="input-field" id="albumInput" placeholder="Album title" />
+    <input class="input-field" id="yearInput" placeholder="Year (optional)" />
+    <button class="btn-generate" id="genBtn" onclick="generate()">
+      <div class="btn-play"></div>
+      Generate Cards
+    </button>
+  </div>
+
+  <div class="divider"></div>
+
+  <!-- Format toggle -->
+  <div class="sidebar-section">
+    <div class="sidebar-label">Format</div>
+    <div class="format-toggle">
+      <button class="fmt-btn active" id="fmtSq" onclick="setFormat('sq')">
+        <div class="fmt-icon sq"></div>
+        Square
+      </button>
+      <button class="fmt-btn" id="fmtVt" onclick="setFormat('vt')">
+        <div class="fmt-icon vt"></div>
+        Vertical
+      </button>
+    </div>
+  </div>
+
+  <div class="divider"></div>
+
+  <!-- Mood palette -->
+  <div class="sidebar-section">
+    <div class="sidebar-label">Mood Accent</div>
+    <div class="mood-grid" id="swatchGrid"></div>
+    <div class="hex-input-row" style="margin-top:4px">
+      <div class="hex-preview" id="hexPreview"></div>
+      <input class="hex-field" id="hexInput" placeholder="#4038a0" maxlength="7" />
+    </div>
+  </div>
+
+  <div class="divider"></div>
+
+  <!-- Card selector -->
+  <div class="sidebar-section" id="cardTabsSection" style="display:none">
+    <div class="sidebar-label">Card</div>
+    <div class="card-tabs" id="cardTabs"></div>
+  </div>
+
+  <div class="tip">
+    <span>↑</span> Click any text on a card to edit it directly.
+  </div>
+
+</div>
+
+<!-- CANVAS -->
+<div class="canvas" id="canvas">
+  <div class="empty-state" id="emptyState">
+    <div class="big-play"></div>
+    <p>Enter an artist & album<br>and hit Generate.</p>
+  </div>
+</div>
+
+<script>
+// ── MOOD PALETTE ──
+const moods = [
+  { name:'Indigo',  hex:'#4038a0', light:'#6b63d4', ga:'rgba(107,99,212,0.22)', gb:'rgba(64,56,160,0.14)' },
+  { name:'Slate',   hex:'#2d5f8a', light:'#4d8fbf', ga:'rgba(77,143,191,0.2)',  gb:'rgba(45,95,138,0.14)' },
+  { name:'Sage',    hex:'#3d6b5a', light:'#5fa68a', ga:'rgba(95,166,138,0.2)',  gb:'rgba(61,107,90,0.14)' },
+  { name:'Rust',    hex:'#8a3a2d', light:'#c46a55', ga:'rgba(196,106,85,0.2)',  gb:'rgba(138,58,45,0.14)' },
+  { name:'Amber',   hex:'#8a6c2d', light:'#c4a255', ga:'rgba(196,162,85,0.2)',  gb:'rgba(138,108,45,0.14)' },
+  { name:'Ash',     hex:'#5a5a6a', light:'#8a8aa0', ga:'rgba(138,138,160,0.2)', gb:'rgba(90,90,106,0.14)' },
+];
+let currentMood = moods[0];
+let currentFormat = 'sq';
+let currentCardIndex = 0;
+let generatedCards = [];
+
+// Build swatches
+const swatchGrid = document.getElementById('swatchGrid');
+moods.forEach((m, i) => {
+  const s = document.createElement('div');
+  s.className = 'swatch' + (i === 0 ? ' active' : '');
+  s.style.background = m.hex;
+  s.title = m.name;
+  s.onclick = () => selectMood(i, m);
+  swatchGrid.appendChild(s);
+});
+
+function selectMood(idx, mood) {
+  currentMood = mood;
+  document.querySelectorAll('.swatch').forEach((s,i) => s.classList.toggle('active', i===idx));
+  document.getElementById('hexInput').value = mood.hex;
+  document.getElementById('hexPreview').style.background = mood.hex;
+  applyMood(mood);
+}
+
+function applyMood(mood) {
+  document.documentElement.style.setProperty('--mood', mood.hex);
+  document.documentElement.style.setProperty('--mood-light', mood.light);
+  // update glow vars on cards via inline style re-render — handled by CSS vars
+  document.querySelectorAll('.card-opener, .card-anim, .card-stack').forEach(el => {
+    el.style.setProperty('--mood-glow-a', mood.ga);
+    el.style.setProperty('--mood-glow-b', mood.gb);
+  });
+  // update dot
+  document.querySelectorAll('.cq-dot').forEach(el => el.style.background = mood.hex);
+}
+
+// Hex input
+const hexInput = document.getElementById('hexInput');
+const hexPreview = document.getElementById('hexPreview');
+hexInput.addEventListener('input', () => {
+  let v = hexInput.value;
+  if (!v.startsWith('#')) v = '#' + v;
+  if (/^#[0-9a-fA-F]{6}$/.test(v)) {
+    hexPreview.style.background = v;
+    document.querySelectorAll('.swatch').forEach(s => s.classList.remove('active'));
+    const custom = { hex: v, light: lighten(v), ga: hexToRgba(v, 0.2), gb: hexToRgba(v, 0.13) };
+    currentMood = custom;
+    applyMood(custom);
+  }
+});
+
+// Init hex preview
+hexPreview.style.background = moods[0].hex;
+hexInput.value = moods[0].hex;
+
+// Re-render cards on resize so auto-fit recalculates
+let resizeTimer;
+window.addEventListener('resize', () => {
+  clearTimeout(resizeTimer);
+  resizeTimer = setTimeout(() => {
+    if (generatedCards.length) renderCards(generatedCards);
+  }, 200);
+});
+
+function lighten(hex) {
+  const r = parseInt(hex.slice(1,3),16), g = parseInt(hex.slice(3,5),16), b = parseInt(hex.slice(5,7),16);
+  const lr = Math.min(255, r + 50), lg = Math.min(255, g + 50), lb = Math.min(255, b + 50);
+  return '#' + [lr,lg,lb].map(x=>x.toString(16).padStart(2,'0')).join('');
+}
+function hexToRgba(hex, a) {
+  const r = parseInt(hex.slice(1,3),16), g = parseInt(hex.slice(3,5),16), b = parseInt(hex.slice(5,7),16);
+  return `rgba(${r},${g},${b},${a})`;
+}
+
+// ── FORMAT ──
+function setFormat(fmt) {
+  currentFormat = fmt;
+  document.getElementById('fmtSq').classList.toggle('active', fmt==='sq');
+  document.getElementById('fmtVt').classList.toggle('active', fmt==='vt');
+  if (generatedCards.length) renderCards(generatedCards);
+}
+
+// ── GENERATE ──
+async function generate() {
+  const artist = document.getElementById('artistInput').value.trim();
+  const album  = document.getElementById('albumInput').value.trim();
+  const year   = document.getElementById('yearInput').value.trim();
+  if (!artist || !album) {
+    document.getElementById('artistInput').style.borderColor = '#c46a55';
+    setTimeout(() => document.getElementById('artistInput').style.borderColor = '', 1200);
+    return;
+  }
+
+  const btn = document.getElementById('genBtn');
+  btn.classList.add('loading');
+  btn.innerHTML = '<div class="btn-play"></div> Generating...';
+
+  showLoading();
+
+  const prompt = `You are the editorial voice of MTMU (Music That Makes You), a curated music platform with a warm, precise, slightly poetic editorial voice — think Pitchfork meets a passionate friend's recommendation. Never generic. Always specific and human.
+
+Generate card content for this album:
+Artist: ${artist}
+Album: ${album}${year ? '\nYear: ' + year : ''}
+
+Return ONLY valid JSON (no markdown, no backticks) with exactly this structure:
+{
+  "artist": "${artist}",
+  "album": "${album}",
+  "year": "${year || new Date().getFullYear()}",
+  "genre": "2-3 word genre description",
+  "label": "record label if known, else Independent",
+  "pullQuote": "A compelling 1-2 sentence quote — either from the artist or a vivid observation about the album. Use <em> tags around 1-2 key words for accent.",
+  "quoteAttribution": "Who said it and context (e.g. 'Elmiene · Billboard, 2026' or 'MTMU on the album')",
+  "editorial": "2 short paragraphs of editorial copy in MTMU's voice. Rich, specific, no filler. Reference specific songs or production details if you know them. Use <strong> for the artist name first mention and album title. Use <em> for 1-2 key phrases. Each paragraph separated by <br><br>.",
+  "stackWord1": "LINE 1 for stacked display. One word OR a short 2-word phrase if the title is long. Goal: 4 balanced rhythmic lines. For long titles group words naturally across lines — e.g. for 'Kiss All The Time. Disco Occasionally.' use 'Kiss All' / 'The Time.' / 'Disco' / 'Occasionally.' For short titles, one word per line. Never leave one line massively longer than others. Do NOT uppercase — CSS handles that.",
+  "stackWord2": "LINE 2. See stackWord1 guidance. Do not uppercase.",
+  "stackWord3": "LINE 3. This line and line 4 will be lit/white; lines 1-2 are dimmed. Do not uppercase.",
+  "stackWord4": "LINE 4. Add a period at the end only if the title has no punctuation. Do not uppercase.",
+  "animLine1": "LINE 1 for animated word reveal. Same grouping logic as stack. Do not uppercase. Dimmed.",
+  "animLine2": "LINE 2. Do not uppercase. Dimmed.",
+  "animLine3": "LINE 3. Do not uppercase. Lit/white.",
+  "animLine4": "LINE 4. Add period if title has no punctuation. Do not uppercase. Lit/white."
+}`;
+
+  try {
+    const response = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'anthropic-dangerous-direct-browser-access': 'true', 'x-api-key': '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'},
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-6',
+        max_tokens: 1000,
+        messages: [{ role: 'user', content: prompt }]
+      })
+    });
+    const data = await response.json();
+    const text = data.content.find(b => b.type === 'text')?.text || '';
+    const clean = text.replace(/```json|```/g, '').trim();
+    const parsed = JSON.parse(clean);
+    generatedCards = [parsed];
+    renderCards(generatedCards);
+    showCardTabs();
+  } catch(e) {
+    showError();
+  }
+
+  btn.classList.remove('loading');
+  btn.innerHTML = '<div class="btn-play"></div> Generate Cards';
+}
+
+function showLoading() {
+  const canvas = document.getElementById('canvas');
+  canvas.innerHTML = `
+    <div class="loading-state">
+      <div class="loading-bars">
+        <span></span><span></span><span></span><span></span><span></span>
+      </div>
+      <div class="loading-text">Writing your cards...</div>
+    </div>`;
+}
+
+function showError() {
+  const canvas = document.getElementById('canvas');
+  canvas.innerHTML = `<div class="empty-state"><p style="color:#c46a55">Something went wrong.<br>Check your inputs and try again.</p></div>`;
+}
+
+// ── CARD TABS ──
+const cardDefs = [
+  { id:'opener',    label:'Opener' },
+  { id:'quote',     label:'Quote' },
+  { id:'editorial', label:'Editorial' },
+  { id:'stack',     label:'Stack' },
+  { id:'animated',  label:'Animated' },
+];
+
+function showCardTabs() {
+  const section = document.getElementById('cardTabsSection');
+  const tabs = document.getElementById('cardTabs');
+  section.style.display = 'flex';
+  tabs.innerHTML = '';
+  cardDefs.forEach((c, i) => {
+    const t = document.createElement('div');
+    t.className = 'card-tab' + (i === 0 ? ' active' : '');
+    t.textContent = c.label;
+    t.onclick = () => {
+      currentCardIndex = i;
+      document.querySelectorAll('.card-tab').forEach((el,j) => el.classList.toggle('active', j===i));
+      renderCards(generatedCards);
+    };
+    tabs.appendChild(t);
+  });
+}
+
+// ── RENDER ──
+function renderCards(cards) {
+  const d = cards[0];
+  const canvas = document.getElementById('canvas');
+  const fmt = currentFormat;
+  const ctype = cardDefs[currentCardIndex].id;
+
+  canvas.innerHTML = '';
+
+  const wrapper = document.createElement('div');
+  wrapper.className = 'card-wrapper';
+
+  const lbl = document.createElement('div');
+  lbl.className = 'card-wrapper-label';
+  lbl.textContent = cardDefs[currentCardIndex].label + ' · ' + (fmt === 'sq' ? 'Square 1:1' : 'Vertical 4:5');
+  wrapper.appendChild(lbl);
+
+  const hint = document.createElement('div');
+  hint.className = 'edit-hint';
+  hint.textContent = '✦ Click any text to edit';
+
+  let cardEl;
+
+  if (ctype === 'opener') {
+    cardEl = buildOpener(d, fmt);
+  } else if (ctype === 'quote') {
+    cardEl = buildQuote(d, fmt);
+  } else if (ctype === 'editorial') {
+    cardEl = buildEditorial(d, fmt);
+  } else if (ctype === 'stack') {
+    cardEl = buildStack(d, fmt);
+  } else if (ctype === 'animated') {
+    cardEl = buildAnimated(d, fmt);
+  }
+
+  wrapper.appendChild(cardEl);
+  wrapper.appendChild(hint);
+
+  if (ctype === 'animated') {
+    const rb = document.createElement('button');
+    rb.className = 'replay-btn';
+    rb.style.display = 'block';
+    rb.textContent = '↺ Replay animation';
+    rb.onclick = () => renderCards(generatedCards);
+    wrapper.appendChild(rb);
+  }
+
+  canvas.appendChild(wrapper);
+  applyMood(currentMood);
+}
+
+function e(tag, cls, html, editable) {
+  const el = document.createElement(tag);
+  if (cls) el.className = cls;
+  if (html !== undefined) el.innerHTML = html;
+  if (editable) el.contentEditable = true;
+  return el;
+}
+
+// Auto-fit stack/animated word lines: all lines share one font size so they stay cohesive
+function autoFitStackLines(lineEls, maxWidth, maxSize, minSize) {
+  // Find the longest word to drive the size decision
+  const longest = Array.from(lineEls).reduce((a, b) =>
+    b.textContent.length > a.textContent.length ? b : a
+  );
+  const len = longest.textContent.trim().length;
+
+  let size;
+  if      (len <= 3)  size = maxSize;
+  else if (len <= 5)  size = maxSize - 4;
+  else if (len <= 7)  size = maxSize - 10;
+  else if (len <= 9)  size = maxSize - 16;
+  else if (len <= 12) size = maxSize - 22;
+  else                size = minSize;
+
+  size = Math.max(minSize, Math.min(size, maxSize));
+  lineEls.forEach(el => el.style.fontSize = size + 'px');
+
+  // Pixel-check pass: shrink until nothing overflows
+  requestAnimationFrame(() => {
+    let overflowing = Array.from(lineEls).some(el => el.scrollWidth > maxWidth);
+    while (overflowing && size > minSize) {
+      size -= 1;
+      lineEls.forEach(el => el.style.fontSize = size + 'px');
+      overflowing = Array.from(lineEls).some(el => el.scrollWidth > maxWidth);
+    }
+  });
+}
+
+// Auto-fit artist name: step down font size until text fits in one line
+function autoFitArtistName(el, maxWidth, maxSize, minSize) {
+  // Use character count for a first fast estimate
+  const name = el.textContent.trim();
+  const len = name.length;
+  let size;
+  if      (len <= 4)  size = maxSize;        // SZA, Silk
+  else if (len <= 6)  size = maxSize - 2;    // Lianne
+  else if (len <= 9)  size = maxSize - 8;    // Mk.gee
+  else if (len <= 12) size = maxSize - 14;   // Mdou Moctar
+  else if (len <= 16) size = maxSize - 20;   // Arooj Aftab
+  else if (len <= 20) size = maxSize - 26;   // Meshell Ndegeocello
+  else                size = minSize;
+
+  size = Math.max(minSize, Math.min(size, maxSize));
+  el.style.fontSize = size + 'px';
+
+  // After DOM paint, shrink further if it's still overflowing
+  requestAnimationFrame(() => {
+    while (el.scrollWidth > maxWidth && size > minSize) {
+      size -= 1;
+      el.style.fontSize = size + 'px';
+    }
+  });
+}
+
+function buildOpener(d, fmt) {
+  const card = document.createElement('div');
+  card.className = `card ${fmt} card-opener`;
+
+  const top = e('div','c-bug');
+  const bug = e('div','bug','MTMU');
+  const issue = e('div','issue','New Listen');
+  top.appendChild(bug); top.appendChild(issue);
+
+  const hl = e('div','c-headline');
+  const lbl = e('div','c-label','Featured Album', true);
+  const artist = e('div','c-artist', d.artist, true);
+  const album = e('div','c-album', d.album, true);
+  const pills = e('div','c-pills');
+  pills.appendChild(e('div','pill', d.genre, true));
+  pills.appendChild(e('div','pill', (d.label || 'Independent') + ' · ' + d.year, true));
+  hl.appendChild(lbl); hl.appendChild(artist); hl.appendChild(album); hl.appendChild(pills);
+
+  card.appendChild(top); card.appendChild(hl);
+
+  // Fit after card is in DOM
+  requestAnimationFrame(() => {
+    const availableWidth = card.offsetWidth - 72;
+    // Artist name: large display text, scale aggressively
+    autoFitArtistName(artist, availableWidth, 54, 22);
+    // Album title: smaller text, just shrink if it would overflow on one line
+    const albumLen = d.album.length;
+    let albumSize = 13;
+    if (albumLen > 30) albumSize = 11;
+    if (albumLen > 40) albumSize = 10;
+    album.style.fontSize = albumSize + 'px';
+  });
+
+  return card;
+}
+
+function buildQuote(d, fmt) {
+  const card = document.createElement('div');
+  card.className = `card ${fmt} card-quote`;
+
+  const top = e('div','cq-top');
+  top.appendChild(e('div','cq-dot'));
+  top.appendChild(e('div','cq-meta', d.artist + ' · ' + d.album, true));
+
+  const qmark = e('div','cq-qmark','"');
+  const qtext = e('div','cq-text', d.pullQuote, true);
+
+  const bottom = e('div','cq-bottom');
+  const attr = e('div','cq-attr');
+  attr.appendChild(e('div','name', d.artist, true));
+  attr.appendChild(e('div','ctx', d.quoteAttribution, true));
+  const bug = e('div','cq-bug','MTMU');
+  bottom.appendChild(attr); bottom.appendChild(bug);
+
+  card.appendChild(top); card.appendChild(qmark); card.appendChild(qtext); card.appendChild(bottom);
+  return card;
+}
+
+function buildEditorial(d, fmt) {
+  const card = document.createElement('div');
+  card.className = `card ${fmt} card-editorial`;
+
+  const rule = e('div','ce-rule');
+  rule.appendChild(e('div','tag','MTMU · Deep Listen'));
+  rule.appendChild(e('div','line'));
+
+  const body = e('div','ce-body', d.editorial, true);
+
+  const foot = e('div','ce-foot');
+  foot.appendChild(e('div','ce-mtmu','MTMU'));
+  const rec = e('div','ce-rec');
+  rec.innerHTML = d.artist + '<br>' + d.album + ' · ' + d.year;
+  rec.contentEditable = true;
+  foot.appendChild(rec);
+
+  card.appendChild(rule); card.appendChild(body); card.appendChild(foot);
+  return card;
+}
+
+function buildStack(d, fmt) {
+  const card = document.createElement('div');
+  card.className = `card ${fmt} card-stack`;
+
+  const top = e('div','cs-top');
+  const bug = e('div','cs-bug','MTMU');
+  const badge = e('div','cs-badge','Just Dropped', true);
+  top.appendChild(bug); top.appendChild(badge);
+
+  const words = e('div','cs-words');
+  const lines = [d.stackWord1, d.stackWord2, d.stackWord3, d.stackWord4];
+  lines.forEach((w, i) => {
+    const line = e('div', 'cs-line' + (i >= 2 ? ' lit' : ''), w, true);
+    words.appendChild(line);
+  });
+  const play = e('div','cs-play');
+  words.appendChild(play);
+
+  const foot = e('div','cs-foot');
+  foot.appendChild(e('div','cs-sub','Debut Album', true));
+  foot.appendChild(e('div','cs-artist', d.artist, true));
+
+  card.appendChild(top); card.appendChild(words); card.appendChild(foot);
+
+  // Fit stack lines after DOM paint
+  requestAnimationFrame(() => {
+    const availableWidth = card.offsetWidth - 72;
+    const lineEls = words.querySelectorAll('.cs-line');
+    autoFitStackLines(lineEls, availableWidth, 62, 20);
+  });
+
+  return card;
+}
+
+function buildAnimated(d, fmt) {
+  const card = document.createElement('div');
+  card.className = `card ${fmt} card-anim`;
+
+  const lines = e('div','line-decor');
+  for(let i=0;i<4;i++) lines.appendChild(document.createElement('span'));
+
+  const top = e('div','ca-top');
+  top.appendChild(e('div','ca-bug','MTMU'));
+  top.appendChild(e('div','ca-live','Now Playing'));
+
+  const words = e('div','ca-words');
+  const animLines = [d.animLine1, d.animLine2, d.animLine3, d.animLine4];
+  animLines.forEach((w, i) => {
+    const word = e('div', 'ca-word' + (i < 2 ? ' dim' : ''), w, true);
+    words.appendChild(word);
+  });
+
+  const reveal = e('div','ca-reveal');
+  reveal.appendChild(e('div','rplay'));
+  reveal.appendChild(e('div','rtext', d.artist + ' · ' + d.year, true));
+
+  const foot = e('div','ca-foot','Music that makes <span style="color:var(--mood-light)">you.</span> ▶', true);
+
+  card.appendChild(lines); card.appendChild(top); card.appendChild(words);
+  card.appendChild(reveal); card.appendChild(foot);
+
+  // Fit animated word lines after DOM paint
+  requestAnimationFrame(() => {
+    const availableWidth = card.offsetWidth - 72;
+    const lineEls = words.querySelectorAll('.ca-word');
+    autoFitStackLines(lineEls, availableWidth, 60, 20);
+  });
+
+  return card;
+}
+</script>
+</body>
+</html>
